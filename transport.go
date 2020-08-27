@@ -112,13 +112,13 @@ func (t *transport) Listen(laddr ma.Multiaddr) (tpt.Listener, error) {
 	if laddr.Protocols()[0].Code == ma.P_ONION3 {
 		lconf = tor.ListenConf{
 			// This extract the port from the bytes and add it to the listen
-			RemotePorts: []int{int(binary.BigEndian.Uint16(laddr.Bytes()[36:38]))},
+			RemotePorts: []int{int(binary.BigEndian.Uint16(laddr.Bytes()[37:39]))},
 			Version3:    true,
 		}
 	} else {
 		lconf = tor.ListenConf{
 			// This extract the port from the bytes and add it to the listen
-			RemotePorts: []int{int(binary.BigEndian.Uint16(laddr.Bytes()[11:13]))},
+			RemotePorts: []int{int(binary.BigEndian.Uint16(laddr.Bytes()[12:14]))},
 		}
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), t.setupTimeout)
