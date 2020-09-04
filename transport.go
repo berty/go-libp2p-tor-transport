@@ -4,7 +4,8 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
-	"strings"
+	"strconv"
+	"sync"
 	"time"
 
 	"github.com/Jorropo/go-tor-transport/config"
@@ -29,14 +30,31 @@ type transport struct {
 	bridge *tor.Tor
 	dialer *tor.Dialer
 
-	// Used to upgrade unsecure TCP connections to secure multiplexed.
-	// TODO: Stop using default upgrader for tor 2 tor connections.
+	// Used to upgrade unsecure TCP connections to secure multiplexed and
+	// authenticate Tor connections.
 	upgrader *tptu.Upgrader
 
 	// if allowTcpDial is true the transport will accept to dial tcp address.
 	allowTcpDial bool
 	// setupTimeout is the timeout for announcing a tunnel
 	setupTimeout time.Duration
+
+	// the listenStore is used for dialing connection to exchange listen addr.
+	laddrs listenStore
+}
+
+// listenStore is a store for listen addrs.
+type listenStore struct {
+	sync.RWMutex
+
+	cur *listenHolder
+}
+
+// listenHolder is a linked list of listen addrs, used to get one to send.
+type listenHolder struct {
+	addr ma.Multiaddr
+
+	next *listenHolder
 }
 
 func NewBuilder(cs ...config.Configurator) (func(*tptu.Upgrader) tpt.Transport, error) {
@@ -109,17 +127,20 @@ func (t *transport) Close() {
 // Listen listens on the given multiaddr.
 func (t *transport) Listen(laddr ma.Multiaddr) (tpt.Listener, error) {
 	var lconf tor.ListenConf
+	var base string
 	if laddr.Protocols()[0].Code == ma.P_ONION3 {
 		lconf = tor.ListenConf{
 			// This extract the port from the bytes and add it to the listen
 			RemotePorts: []int{int(binary.BigEndian.Uint16(laddr.Bytes()[37:39]))},
 			Version3:    true,
 		}
+		base = "/onion3/"
 	} else {
 		lconf = tor.ListenConf{
 			// This extract the port from the bytes and add it to the listen
 			RemotePorts: []int{int(binary.BigEndian.Uint16(laddr.Bytes()[12:14]))},
 		}
+		base = "/onion/"
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), t.setupTimeout)
 	// Create an onion service to listen on any port but show as 80
@@ -128,10 +149,36 @@ func (t *transport) Listen(laddr ma.Multiaddr) (tpt.Listener, error) {
 		cancel()
 		return nil, errorx.Decorate(err, "Can't start tor listener")
 	}
-	return t.upgrader.UpgradeListener(t, &listener{
-		service: s,
-		cancel:  cancel,
-	}), nil
+
+	// Adding the listen addr to the store.
+	// Making the new holder
+	trueLAddr, err := ma.NewMultiaddr(base + s.ID + ":" + strconv.Itoa(s.RemotePorts[0]))
+	checkError(err)
+	newHolder := &listenHolder{addr: trueLAddr}
+
+	t.laddrs.Lock()
+	// Iterating the linked list and adding to the last.
+	cur := t.laddrs.cur
+	if cur == nil {
+		t.laddrs.cur = newHolder
+		goto FinishAddingLAddr
+	}
+	for cur.next != nil {
+		cur = cur.next
+	}
+	cur.next = newHolder
+FinishAddingLAddr:
+	t.laddrs.Unlock()
+
+	return &listener{
+		service:    s,
+		ctx:        ctx,
+		cancel:     cancel,
+		upgrader:   t.upgrader,
+		t:          t,
+		lAddrStore: &t.laddrs,
+		lAddrCur:   cur,
+	}, nil
 }
 
 func (t *transport) Dial(ctx context.Context, raddr ma.Multiaddr, p peer.ID) (tpt.CapableConn, error) {
@@ -140,13 +187,12 @@ func (t *transport) Dial(ctx context.Context, raddr ma.Multiaddr, p peer.ID) (tp
 		return nil, errorx.IllegalArgument.New(fmt.Sprintf("Can't dial \"%s\".", raddr))
 	}
 	var addr string
+	var onion bool
 	p0 := raddr.Protocols()[0].Code
 	switch p0 {
 	case ma.P_ONION, ma.P_ONION3:
-		v, err := raddr.ValueForProtocol(p0)
-		checkError(err)
-		vs := strings.SplitN(v, ":", 2)
-		addr = vs[0] + ".onion:" + vs[1]
+		addr = string(maddrToNetAddrP0(raddr, p0))
+		onion = true
 	case ma.P_IP4, ma.P_IP6:
 		n, err := manet.ToNetAddr(raddr)
 		checkError(err)
@@ -158,8 +204,59 @@ func (t *transport) Dial(ctx context.Context, raddr ma.Multiaddr, p peer.ID) (tp
 	if err != nil {
 		return nil, errorx.Decorate(err, "Can't dial")
 	}
-	return t.upgrader.UpgradeOutbound(ctx, t, &dialConn{
-		Conn:  c,
-		raddr: raddr,
+
+	conn, err := t.upgrader.UpgradeOutbound(ctx, t, &dialConn{
+		netConnWithoutAddr: c,
+		raddr:              raddr,
+		laddr:              &t.laddrs,
 	}, p)
+	if err != nil {
+		return nil, errorx.Decorate(err, "Can't upgrade laddr exchange connection")
+	}
+
+	if onion {
+		// Entering the laddr exchange (due to tor limitation, the dialer have to send
+		// his local addr manualy).
+		var laddr ma.Multiaddr
+		t.laddrs.RLock()
+		cur := t.laddrs.cur
+		t.laddrs.RUnlock()
+		if cur == nil {
+			laddr = nopMaddr
+		} else {
+			laddr = cur.addr
+		}
+		stream, err := conn.OpenStream()
+		if err != nil {
+			conn.Close()
+			return nil, errorx.Decorate(err, "Can't open laddr exchange stream")
+		}
+		// buffer the message first, tor isn't fast.
+		var buf []byte
+		if laddr.Protocols()[0].Code == ma.P_ONION3 {
+			buf = []byte{encodeOnion3}
+		} else {
+			buf = []byte{encodeOnion}
+		}
+		buf = append(buf, laddr.Bytes()...)
+		n := len(buf)
+		var done int
+		for n > 0 {
+			nminus, err := stream.Write(buf[done:])
+			if err != nil {
+				// In case of error here just end exchange and continue onward.
+				goto EndLAddrExchange
+			}
+			n -= nminus
+			done += nminus
+		}
+	EndLAddrExchange:
+		stream.Close()
+	}
+	return conn, nil
 }
+
+const (
+	encodeOnion  uint8 = 0
+	encodeOnion3 uint8 = 1
+)

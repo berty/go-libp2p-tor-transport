@@ -10,4 +10,5 @@ require (
 	github.com/libp2p/go-libp2p-transport-upgrader v0.3.0
 	github.com/multiformats/go-multiaddr v0.3.1
 	github.com/multiformats/go-multiaddr-fmt v0.1.0
+	golang.org/x/tools v0.0.0-20200117012304-6edc0a871e69 // indirect
 )
