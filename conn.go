@@ -5,6 +5,7 @@ import (
 	"time"
 
 	ma "github.com/multiformats/go-multiaddr"
+	manet "github.com/multiformats/go-multiaddr/net"
 )
 
 type listConn struct {
@@ -50,6 +51,40 @@ func (c *dialConn) RemoteMultiaddr() ma.Multiaddr {
 }
 
 func (c *dialConn) LocalMultiaddr() ma.Multiaddr {
+	var laddr ma.Multiaddr
+	c.laddr.RLock()
+	cur := c.laddr.cur
+	c.laddr.RUnlock()
+	if cur == nil {
+		laddr = nopMaddr
+	} else {
+		laddr = cur.addr
+	}
+	return laddr
+}
+
+type dialConnTcp struct {
+	netConnWithoutAddr
+
+	laddr *listenStore
+	raddr ma.Multiaddr
+}
+
+func (c *dialConnTcp) LocalAddr() net.Addr {
+	return maddrToNetAddr(c.LocalMultiaddr())
+}
+
+func (c *dialConnTcp) RemoteAddr() net.Addr {
+	addr, err := manet.ToNetAddr(c.RemoteMultiaddr())
+	checkError(err)
+	return addr
+}
+
+func (c *dialConnTcp) RemoteMultiaddr() ma.Multiaddr {
+	return c.raddr
+}
+
+func (c *dialConnTcp) LocalMultiaddr() ma.Multiaddr {
 	var laddr ma.Multiaddr
 	c.laddr.RLock()
 	cur := c.laddr.cur

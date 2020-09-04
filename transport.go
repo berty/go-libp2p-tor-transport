@@ -186,35 +186,26 @@ func (t *transport) Dial(ctx context.Context, raddr ma.Multiaddr, p peer.ID) (tp
 	if !t.CanDial(raddr) {
 		return nil, errorx.IllegalArgument.New(fmt.Sprintf("Can't dial \"%s\".", raddr))
 	}
-	var addr string
-	var onion bool
 	p0 := raddr.Protocols()[0].Code
 	switch p0 {
-	case ma.P_ONION, ma.P_ONION3:
-		addr = string(maddrToNetAddrP0(raddr, p0))
-		onion = true
-	case ma.P_IP4, ma.P_IP6:
-		n, err := manet.ToNetAddr(raddr)
-		checkError(err)
-		addr = n.String()
-	default:
-		panic(fmt.Sprintf("Was not able to create net Addr from multiaddr, this shouldn't fail, check your multiaddr package or report to maintainers ! (%s)", raddr))
-	}
-	c, err := t.dialer.DialContext(ctx, "tcp", addr)
-	if err != nil {
-		return nil, errorx.Decorate(err, "Can't dial")
-	}
+	case ma.P_ONION, ma.P_ONION3: // Onion Dial
+		addr := string(maddrToNetAddrP0(raddr, p0))
 
-	conn, err := t.upgrader.UpgradeOutbound(ctx, t, &dialConn{
-		netConnWithoutAddr: c,
-		raddr:              raddr,
-		laddr:              &t.laddrs,
-	}, p)
-	if err != nil {
-		return nil, errorx.Decorate(err, "Can't upgrade laddr exchange connection")
-	}
+		// Dialing
+		c, err := t.dialer.DialContext(ctx, "tcp", addr)
+		if err != nil {
+			return nil, errorx.Decorate(err, "Can't dial")
+		}
+		// Upgrading
+		conn, err := t.upgrader.UpgradeOutbound(ctx, t, &dialConn{
+			netConnWithoutAddr: c,
+			raddr:              raddr,
+			laddr:              &t.laddrs,
+		}, p)
+		if err != nil {
+			return nil, errorx.Decorate(err, "Can't upgrade laddr exchange connection")
+		}
 
-	if onion {
 		// Entering the laddr exchange (due to tor limitation, the dialer have to send
 		// his local addr manualy).
 		var laddr ma.Multiaddr
@@ -252,8 +243,32 @@ func (t *transport) Dial(ctx context.Context, raddr ma.Multiaddr, p peer.ID) (tp
 		}
 	EndLAddrExchange:
 		stream.Close()
+		return conn, nil
+
+	case ma.P_IP4, ma.P_IP6: // IP Dial
+		netAddr, err := manet.ToNetAddr(raddr)
+		checkError(err)
+		addr := netAddr.String()
+
+		// Dialing
+		c, err := t.dialer.DialContext(ctx, "tcp", addr)
+		if err != nil {
+			return nil, errorx.Decorate(err, "Can't dial")
+		}
+		// Upgrading
+		conn, err := t.upgrader.UpgradeOutbound(ctx, t, &dialConnTcp{
+			netConnWithoutAddr: c,
+			raddr:              raddr,
+			laddr:              &t.laddrs,
+		}, p)
+		if err != nil {
+			return nil, errorx.Decorate(err, "Can't upgrade connection")
+		}
+		return conn, nil
+
+	default:
+		panic(fmt.Sprintf("Was not able to create net Addr from multiaddr, this shouldn't fail, check your multiaddr package or report to maintainers ! (%s)", raddr))
 	}
-	return conn, nil
 }
 
 const (
