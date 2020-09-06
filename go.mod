@@ -1,4 +1,4 @@
-module github.com/Jorropo/go-tor-transport
+module github.com/berty/go-tor-transport
 
 go 1.15
 
