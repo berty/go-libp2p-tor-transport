@@ -177,7 +177,7 @@ FinishAddingLAddr:
 		upgrader:   t.upgrader,
 		t:          t,
 		lAddrStore: &t.laddrs,
-		lAddrCur:   cur,
+		lAddrCur:   newHolder,
 	}, nil
 }
 

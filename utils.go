@@ -10,6 +10,7 @@ import (
 
 // nopMaddr is an empty maddr used as filler when needed.
 var nopMaddr, _ = ma.NewMultiaddr("/onion/aaaaaaaaaaaaaaaa:1")
+var nopOnion3, _ = ma.NewMultiaddr("/onion3/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:1")
 
 // maddrToNetAddr is unsafe and need to be called with caution.
 func maddrToNetAddr(m ma.Multiaddr) addr {

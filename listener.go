@@ -4,6 +4,7 @@ import (
 	"context"
 	"net"
 	"strconv"
+	"sync"
 
 	"github.com/cretz/bine/tor"
 
@@ -19,6 +20,7 @@ type listener struct {
 	service *tor.OnionService
 	ctx     context.Context
 	cancel  func()
+	closer sync.Once
 
 	upgrader *tptu.Upgrader
 	t        *transport
@@ -44,22 +46,26 @@ func (l *listener) Addr() net.Addr {
 }
 
 func (l *listener) Close() error {
-	// Remove the listener from the store.
-	l.lAddrStore.Lock()
-	cur := l.lAddrStore.cur
-	if cur == l.lAddrCur {
-		l.lAddrStore.cur = l.lAddrCur.next
-		goto FinishRemovingLAddr
-	}
-	// No need to check for nil, we must hit our current first.
-	for cur.next != l.lAddrCur {
-		cur = cur.next
-	}
-	cur.next = l.lAddrCur.next
-FinishRemovingLAddr:
-	l.lAddrStore.Unlock()
-	l.cancel()
-	return l.service.Close()
+	var err error
+	l.closer.Do(func(){
+		// Remove the listener from the store.
+		l.lAddrStore.Lock()
+		cur := l.lAddrStore.cur
+		if cur == l.lAddrCur {
+			l.lAddrStore.cur = l.lAddrCur.next
+			goto FinishRemovingLAddr
+		}
+		// No need to check for nil, we must hit our current first.
+		for cur.next != l.lAddrCur {
+			cur = cur.next
+		}
+		cur.next = l.lAddrCur.next
+	FinishRemovingLAddr:
+		l.lAddrStore.Unlock()
+		l.cancel()
+		err = l.service.Close()
+	})
+	return err
 }
 
 func (l *listener) Accept() (tpt.CapableConn, error) {
@@ -80,7 +86,6 @@ func (l *listener) Accept() (tpt.CapableConn, error) {
 		maConn,
 	)
 	if err != nil {
-		conn.Close()
 		return nil, errorx.Decorate(err, "Can't upgrade raddr exchange connection")
 	}
 
