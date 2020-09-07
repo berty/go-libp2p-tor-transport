@@ -9,6 +9,12 @@ import (
 	"github.com/joomcode/errorx"
 )
 
+// Check that all configurator are correctly done :
+var _ = []Configurator{
+	AllowTcpDial,
+	DoSlowStart,
+}
+
 type Configurator func(*confStore.Config) error
 
 // ConfMerge Merges different configs, starting at the first ending at the last.
