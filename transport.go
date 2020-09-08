@@ -8,8 +8,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/berty/go-tor-transport/config"
-	"github.com/berty/go-tor-transport/internal/confStore"
+	"berty.tech/go-libp2p-tor-transport/config"
+	"berty.tech/go-libp2p-tor-transport/internal/confStore"
 
 	"github.com/cretz/bine/tor"
 	"github.com/ipsn/go-libtor"

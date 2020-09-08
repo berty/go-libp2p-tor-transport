@@ -1,8 +1,9 @@
-module github.com/berty/go-tor-transport
+module berty.tech/go-libp2p-tor-transport
 
 go 1.15
 
 require (
+	github.com/berty/go-tor-transport v0.3.0
 	github.com/cretz/bine v0.1.0
 	github.com/ipsn/go-libtor v1.0.294
 	github.com/joomcode/errorx v1.0.3
@@ -10,5 +11,5 @@ require (
 	github.com/libp2p/go-libp2p-transport-upgrader v0.3.0
 	github.com/multiformats/go-multiaddr v0.3.1
 	github.com/multiformats/go-multiaddr-fmt v0.1.0
-	golang.org/x/tools v0.0.0-20200117012304-6edc0a871e69 // indirect
+	golang.org/x/tools v0.0.0-20200904185747-39188db58858 // indirect
 )

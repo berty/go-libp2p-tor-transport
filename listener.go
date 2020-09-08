@@ -20,7 +20,7 @@ type listener struct {
 	service *tor.OnionService
 	ctx     context.Context
 	cancel  func()
-	closer sync.Once
+	closer  sync.Once
 
 	upgrader *tptu.Upgrader
 	t        *transport
@@ -47,7 +47,7 @@ func (l *listener) Addr() net.Addr {
 
 func (l *listener) Close() error {
 	var err error
-	l.closer.Do(func(){
+	l.closer.Do(func() {
 		// Remove the listener from the store.
 		l.lAddrStore.Lock()
 		cur := l.lAddrStore.cur

@@ -4,7 +4,7 @@ import (
 	"io"
 	"time"
 
-	"github.com/berty/go-tor-transport/internal/confStore"
+	"berty.tech/go-libp2p-tor-transport/internal/confStore"
 
 	"github.com/joomcode/errorx"
 )
