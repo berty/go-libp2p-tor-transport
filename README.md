@@ -4,6 +4,8 @@ Go tor transport is a [go-libp2p](https://github.com/libp2p/go-libp2p) transport
 ## WIP
 This transport is in very early stages (PoC) many of features enumerated here are just targets we think we can acheive.
 
+You can follow the process of the **1.0** [here](https://github.com/berty/go-libp2p-tor-transport/projects/1).
+
 ## Usage :
 ```go
 import (
