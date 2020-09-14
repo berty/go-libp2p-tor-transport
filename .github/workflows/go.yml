@@ -7,8 +7,8 @@ on:
     branches: [ master ]
 
 jobs:
-  build:
-    name: Build
+  Linux:
+    name: Linux Build
     runs-on: ubuntu-latest
     steps:
 
@@ -26,4 +26,19 @@ jobs:
 
     - name: Check Format
       run: .github/checkFormat.sh
+  Darwin:
+    name: Darwin Build
+    runs-on: ubuntu-latest
+    steps:
 
+    - name: Install GO
+      uses: actions/setup-go@v2
+      with:
+        go-version: ^1.15
+      id: go
+
+    - name: Checkout
+      uses: actions/checkout@v2
+
+    - name: Build
+      run: go build -v -x ./...
