@@ -11,8 +11,8 @@ import (
 	"berty.tech/go-libp2p-tor-transport/config"
 	"berty.tech/go-libp2p-tor-transport/internal/confStore"
 
+	"berty.tech/go-libtor"
 	"github.com/cretz/bine/tor"
-	"github.com/ipsn/go-libtor"
 
 	"github.com/libp2p/go-libp2p-core/peer"
 	tpt "github.com/libp2p/go-libp2p-core/transport"
