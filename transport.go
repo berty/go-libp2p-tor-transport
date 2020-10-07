@@ -213,7 +213,7 @@ func (t *transport) Dial(ctx context.Context, raddr ma.Multiaddr, p peer.ID) (tp
 		cur := t.laddrs.cur
 		t.laddrs.RUnlock()
 		if cur == nil {
-			laddr = nopMaddr
+			laddr = NopMaddr2
 		} else {
 			laddr = cur.addr
 		}

@@ -77,7 +77,7 @@ func (l *listener) Accept() (tpt.CapableConn, error) {
 	maConn := &listConn{
 		netConnWithoutAddr: c,
 		l:                  l,
-		raddr:              nopMaddr,
+		raddr:              NopMaddr2,
 	}
 
 	conn, err := l.upgrader.UpgradeInbound(

@@ -56,7 +56,7 @@ func (c *dialConn) LocalMultiaddr() ma.Multiaddr {
 	cur := c.laddr.cur
 	c.laddr.RUnlock()
 	if cur == nil {
-		laddr = nopMaddr
+		laddr = NopMaddr2
 	} else {
 		laddr = cur.addr
 	}
@@ -90,7 +90,7 @@ func (c *dialConnTcp) LocalMultiaddr() ma.Multiaddr {
 	cur := c.laddr.cur
 	c.laddr.RUnlock()
 	if cur == nil {
-		laddr = nopMaddr
+		laddr = NopMaddr2
 	} else {
 		laddr = cur.addr
 	}
