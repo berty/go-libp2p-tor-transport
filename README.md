@@ -2,7 +2,7 @@
 Go tor transport is a [go-libp2p](https://github.com/libp2p/go-libp2p) transport targeting mainly \*nix platform.
 
 ## WIP
-This transport is in very early stages (PoC) many of features enumerated here are just targets we think we can acheive.
+This transport is in very early stages (PoC) many of features enumerated here are just targets.
 
 You can follow the process of the **1.0** [here](https://github.com/berty/go-libp2p-tor-transport/projects/1).
 
@@ -12,15 +12,18 @@ import (
   "context"
 
   tor "berty.tech/go-libp2p-tor-transport"
+  config "berty.tech/go-libp2p-tor-transport/config"
   libp2p "github.com/libp2p/go-libp2p"
 )
 
 func main() {
-  builder, err := tor.NewBuilder() // Create a builder
+  builder, err := tor.NewBuilder( // Create a builder
+    config.EnableEmbeded,         // Use the embeded tor instance.
+  )
   c(err)
-  host, err := libp2p.New(         // Create a libp2p node
+  host, err := libp2p.New(        // Create a libp2p node
     context.Background(),
-    libp2p.Transport(builder),     // Use the builder to create a transport instance (you can't reuse the same builder after that).
+    libp2p.Transport(builder),    // Use the builder to create a transport instance (you can't reuse the same builder after that).
   )
   c(err)
 }
@@ -44,9 +47,10 @@ import (
 )
 
 func main() {
-  builder, err := tor.NewBuilder(       // NewBuilder can accept some `config.Configurator`
-    config.AllowTcpDial                 // Some Configurator are already ready to use.
-    config.SetSetupTimeout(time.Minute) // Some require a parameter, in this case it's a function that will return a Configurator.
+  builder, err := tor.NewBuilder(        // NewBuilder can accept some `config.Configurator`
+    config.AllowTcpDial,                 // Some Configurator are already ready to use.
+    config.SetSetupTimeout(time.Minute), // Some require a parameter, in this case it's a function that will return a Configurator.
+    config.SetBinaryPath("/usr/bin/tor"),
   )
   // Evrything else is as previously shown.
   c(err)
