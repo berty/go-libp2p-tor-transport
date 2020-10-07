@@ -275,3 +275,8 @@ const (
 	encodeOnion  uint8 = 0
 	encodeOnion3 uint8 = 1
 )
+
+// ProviderVersion return the version of the embeded tor node.
+func ProviderVersion() string {
+	return libtor.ProviderVersion()
+}
