@@ -1,15 +1,22 @@
-name: Go
+name: Go With Embeded Tor
 
 on:
   push:
     branches: [ master ]
     paths:
       - '.github/workflows/go-embededTor.yml'
-      - '**.go'
+      - '**/_supported.go'
+      - '**/_unsupported.go'
       - 'go.mod'
       - 'go.sum'
   pull_request:
     branches: [ master ]
+    paths:
+      - '.github/workflows/go-embededTor.yml'
+      - '**/_supported.go'
+      - '**/_unsupported.go'
+      - 'go.mod'
+      - 'go.sum'
 
 jobs:
   Linux:
@@ -27,7 +34,7 @@ jobs:
       uses: actions/checkout@v2
 
     - name: Build
-      run: go build -v -x ./...
+      run: go build -v -x -tags=embedTor ./...
 
     - name: Check Format
       run: .github/checkFormat.sh
@@ -46,4 +53,4 @@ jobs:
       uses: actions/checkout@v2
 
     - name: Build
-      run: go build -v -x ./...
+      run: go build -v -x -tags=embedTor ./...

@@ -11,7 +11,6 @@ import (
 	"berty.tech/go-libp2p-tor-transport/config"
 	"berty.tech/go-libp2p-tor-transport/internal/confStore"
 
-	"berty.tech/go-libtor"
 	"github.com/cretz/bine/tor"
 
 	"github.com/libp2p/go-libp2p-core/peer"
@@ -64,9 +63,7 @@ func NewBuilder(cs ...config.Configurator) (func(*tptu.Upgrader) tpt.Transport, 
 		c := &confStore.Config{
 			SetupTimeout: 5 * time.Minute,
 			TorStart: &tor.StartConf{
-				ProcessCreator:         libtor.Creator, // Use Embed
-				UseEmbeddedControlConn: true,           // Use Embed conn
-				EnableNetwork:          true,           // Do Fast Start
+				EnableNetwork: true, // Do Fast Start
 			},
 		}
 		if err := config.Merge(cs...)(c); err != nil {
@@ -275,8 +272,3 @@ const (
 	encodeOnion  uint8 = 0
 	encodeOnion3 uint8 = 1
 )
-
-// ProviderVersion return the version of the embeded tor node.
-func ProviderVersion() string {
-	return libtor.ProviderVersion()
-}

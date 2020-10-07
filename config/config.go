@@ -4,15 +4,17 @@ import (
 	"io"
 	"time"
 
-	"berty.tech/go-libp2p-tor-transport/internal/confStore"
-
 	"github.com/joomcode/errorx"
+	"github.com/yookoala/realpath"
+
+	"berty.tech/go-libp2p-tor-transport/internal/confStore"
 )
 
 // Check that all configurator are correctly done :
 var _ = []Configurator{
 	AllowTcpDial,
 	DoSlowStart,
+	EnableEmbeded,
 }
 
 type Configurator func(*confStore.Config) error
@@ -59,6 +61,18 @@ func SetSetupTimeout(t time.Duration) Configurator {
 func SetNodeDebug(debug io.Writer) Configurator {
 	return func(c *confStore.Config) error {
 		c.TorStart.DebugWriter = debug
+		return nil
+	}
+}
+
+// SetBinaryPath set the path to the Tor's binary if you don't use the embeded Tor node.
+func SetBinaryPath(path string) Configurator {
+	return func(c *confStore.Config) error {
+		rpath, err := realpath.Realpath(path)
+		if err != nil {
+			return errorx.Decorate(err, "Can't resolve path")
+		}
+		c.TorStart.ExePath = rpath
 		return nil
 	}
 }
