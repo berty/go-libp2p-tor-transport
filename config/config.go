@@ -76,3 +76,18 @@ func SetBinaryPath(path string) Configurator {
 		return nil
 	}
 }
+
+// SetTemporaryDirectory sets the temporary directory where Tor is gonna put his
+// data dir.
+// If you want an easy way to find it you can use:
+// https://github.com/Jorropo/go-temp-dir
+func SetTemporaryDirectory(path string) Configurator {
+	return func(c *confStore.Config) error {
+		rpath, err := realpath.Realpath(path)
+		if err != nil {
+			errorx.Decorate(err, "Can't resolve path")
+		}
+		c.TorStart.TempDataDirBase = rpath
+		return nil
+	}
+}
