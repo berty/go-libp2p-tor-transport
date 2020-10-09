@@ -241,31 +241,40 @@ func (t *transport) Dial(ctx context.Context, raddr ma.Multiaddr, p peer.ID) (tp
 	EndLAddrExchange:
 		stream.Close()
 		return conn, nil
-
 	case ma.P_IP4, ma.P_IP6: // IP Dial
 		netAddr, err := manet.ToNetAddr(raddr)
 		checkError(err)
-		addr := netAddr.String()
 
-		// Dialing
-		c, err := t.dialer.DialContext(ctx, "tcp", addr)
-		if err != nil {
-			return nil, errorx.Decorate(err, "Can't dial")
-		}
-		// Upgrading
-		conn, err := t.upgrader.UpgradeOutbound(ctx, t, &dialConnTcp{
-			netConnWithoutAddr: c,
-			raddr:              raddr,
-			laddr:              &t.laddrs,
-		}, p)
-		if err != nil {
-			return nil, errorx.Decorate(err, "Can't upgrade connection")
-		}
-		return conn, nil
+		return t.dialTroughProxy(ctx, raddr, netAddr.String(), p)
 
+	case ma.P_DNS4, ma.P_DNS6: // DNS Dial
+		domain, err := raddr.ValueForProtocol(p0)
+		checkError(err)
+		port, err := raddr.ValueForProtocol(ma.P_TCP)
+		checkError(err)
+
+		return t.dialTroughProxy(ctx, raddr, domain+".onion:"+port, p)
 	default:
 		panic(fmt.Sprintf("Was not able to create net Addr from multiaddr, this shouldn't fail, check your multiaddr package or report to maintainers ! (%s)", raddr))
 	}
+}
+
+func (t *transport) dialTroughProxy(ctx context.Context, raddr ma.Multiaddr, addr string, p peer.ID) (tpt.CapableConn, error) {
+	// Dialing
+	c, err := t.dialer.DialContext(ctx, "tcp", addr)
+	if err != nil {
+		return nil, errorx.Decorate(err, "Can't dial")
+	}
+	// Upgrading
+	conn, err := t.upgrader.UpgradeOutbound(ctx, t, &dialConnTcp{
+		netConnWithoutAddr: c,
+		raddr:              raddr,
+		laddr:              &t.laddrs,
+	}, p)
+	if err != nil {
+		return nil, errorx.Decorate(err, "Can't upgrade connection")
+	}
+	return conn, nil
 }
 
 const (
