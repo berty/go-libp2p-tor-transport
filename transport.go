@@ -114,7 +114,7 @@ var matcher = mafmt.Or(
 )
 
 func (t *transport) CanDial(maddr ma.Multiaddr) bool {
-	return matcher.Matches(maddr) || (t.allowTcpDial && mafmt.TCP.Matches(maddr))
+	return matcher.Matches(maddr) || (t.allowTcpDial && mafmt.TCP.Matches(maddr) && manet.IsPublicAddr(maddr))
 }
 
 func (t *transport) Close() {
