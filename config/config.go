@@ -67,8 +67,8 @@ func SetNodeDebug(debug io.Writer) Configurator {
 
 // SetBinaryPath set the path to the Tor's binary if you don't use the embeded Tor node.
 func SetBinaryPath(path string) Configurator {
+	rpath, err := realpath.Realpath(path)
 	return func(c *confStore.Config) error {
-		rpath, err := realpath.Realpath(path)
 		if err != nil {
 			return errorx.Decorate(err, "Can't resolve path")
 		}
@@ -82,12 +82,24 @@ func SetBinaryPath(path string) Configurator {
 // If you want an easy way to find it you can use:
 // https://github.com/Jorropo/go-temp-dir
 func SetTemporaryDirectory(path string) Configurator {
+	rpath, err := realpath.Realpath(path)
 	return func(c *confStore.Config) error {
-		rpath, err := realpath.Realpath(path)
 		if err != nil {
 			errorx.Decorate(err, "Can't resolve path")
 		}
 		c.TorStart.TempDataDirBase = rpath
+		return nil
+	}
+}
+
+// SetTorrc sets the torrc file for tor to use instead of an blank one.
+func SetTorrcPath(path string) Configurator {
+	rpath, err := realpath.Realpath(path)
+	return func(c *confStore.Config) error {
+		if err != nil {
+			errorx.Decorate(err, "Can't resolve path")
+		}
+		c.TorStart.TorrcFile = rpath
 		return nil
 	}
 }
