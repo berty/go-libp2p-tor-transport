@@ -4,12 +4,17 @@ on:
   push:
     branches: [ master ]
     paths:
-      - '.github/workflows/go-embededTor.yml'
+      - '.github/workflows/go.yml'
       - '**.go'
       - 'go.mod'
       - 'go.sum'
   pull_request:
     branches: [ master ]
+    paths:
+      - '.github/workflows/go.yml'
+      - '**.go'
+      - 'go.mod'
+      - 'go.sum'
 
 jobs:
   Linux:
