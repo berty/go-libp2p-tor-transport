@@ -1,5 +1,5 @@
-berty.tech/go-libtor v1.0.330 h1:2KgOJl9quR6Od8UKUNB96lVv+hZYCnly//ZiI/nfKx0=
-berty.tech/go-libtor v1.0.330/go.mod h1:9swOOQVb+kmvuAlsgWUK/4c52pm69AdbJsxLzk+fJEw=
+berty.tech/go-libtor v1.0.333 h1:z0Uars8ZFprlGRGDAsomBtjTQfR9T7eMBmPDaZp1GRk=
+berty.tech/go-libtor v1.0.333/go.mod h1:9swOOQVb+kmvuAlsgWUK/4c52pm69AdbJsxLzk+fJEw=
 cloud.google.com/go v0.26.0/go.mod h1:aQUYkXzVsufM+DwF1aE+0xfcU+56JwCaLick0ClmMTw=
 github.com/BurntSushi/toml v0.3.1 h1:WXkYYl6Yr3qBf1K79EBnL4mak0OimBfB0XUf9Vl28OQ=
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
