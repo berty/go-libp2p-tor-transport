@@ -1,6 +1,7 @@
 package config
 
 import (
+	"context"
 	"io"
 	"time"
 
@@ -9,13 +10,6 @@ import (
 
 	"berty.tech/go-libp2p-tor-transport/internal/confStore"
 )
-
-// Check that all configurator are correctly done :
-var _ = []Configurator{
-	AllowTcpDial,
-	DoSlowStart,
-	EnableEmbeded,
-}
 
 type Configurator func(*confStore.Config) error
 
@@ -33,16 +27,20 @@ func Merge(cs ...Configurator) Configurator {
 
 // AllowTcpDial allows the tor transport to dial tcp address.
 // By Default TcpDial is off.
-func AllowTcpDial(c *confStore.Config) error {
-	c.AllowTcpDial = true
-	return nil
+func AllowTcpDial() Configurator {
+	return func(c *confStore.Config) error {
+		c.AllowTcpDial = true
+		return nil
+	}
 }
 
 // DoSlowStart set the tor node to bootstrap only when a Dial or a Listen is issued.
 // By Default DoSlowStart is off.
-func DoSlowStart(c *confStore.Config) error {
-	c.TorStart.EnableNetwork = false
-	return nil
+func DoSlowStart() Configurator {
+	return func(c *confStore.Config) error {
+		c.TorStart.EnableNetwork = false
+		return nil
+	}
 }
 
 // SetSetupTimeout change the timeout for the bootstrap of the node and the publication of the tunnel.
@@ -79,13 +77,11 @@ func SetBinaryPath(path string) Configurator {
 
 // SetTemporaryDirectory sets the temporary directory where Tor is gonna put his
 // data dir.
-// If you want an easy way to find it you can use:
-// https://github.com/Jorropo/go-temp-dir
 func SetTemporaryDirectory(path string) Configurator {
 	rpath, err := realpath.Realpath(path)
 	return func(c *confStore.Config) error {
 		if err != nil {
-			errorx.Decorate(err, "Can't resolve path")
+			return errorx.Decorate(err, "Can't resolve path")
 		}
 		c.TorStart.TempDataDirBase = rpath
 		return nil
@@ -97,9 +93,17 @@ func SetTorrcPath(path string) Configurator {
 	rpath, err := realpath.Realpath(path)
 	return func(c *confStore.Config) error {
 		if err != nil {
-			errorx.Decorate(err, "Can't resolve path")
+			return errorx.Decorate(err, "Can't resolve path")
 		}
 		c.TorStart.TorrcFile = rpath
+		return nil
+	}
+}
+
+// SetRunningContext sets the context used for the running of the node.
+func SetRunningContext(ctx context.Context) Configurator {
+	return func(c *confStore.Config) error {
+		c.RunningContext = ctx
 		return nil
 	}
 }

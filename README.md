@@ -1,29 +1,28 @@
 # go-libp2p-tor-transport
 Go tor transport is a [go-libp2p](https://github.com/libp2p/go-libp2p) transport targeting mainly \*nix platform.
 
-## WIP
-This transport is in very early stages (PoC) many of features enumerated here are just targets.
-
 You can follow the process of the **1.0** [here](https://github.com/berty/go-libp2p-tor-transport/projects/1).
 
 ## Usage :
 ```go
+package main
 import (
   "context"
 
   tor "berty.tech/go-libp2p-tor-transport"
+  dns "berty.tech/go-libp2p-tor-transport/dns-helpers"
   config "berty.tech/go-libp2p-tor-transport/config"
   libp2p "github.com/libp2p/go-libp2p"
 )
 
 func main() {
   builder, err := tor.NewBuilder( // Create a builder
-    config.EnableEmbeded,         // Use the embeded tor instance.
+    config.EnableEmbeded(),       // Use the embeded tor instance.
   )
   c(err)
   host, err := libp2p.New(        // Create a libp2p node
     context.Background(),
-    libp2p.Transport(builder),    // Use the builder to create a transport instance (you can't reuse the same builder after that).
+    libp2p.Transport(builder.GetTransportConstructor()), // Use the builder to create a transport instance (you can't reuse the same builder after that).
   )
   c(err)
 }
@@ -37,6 +36,7 @@ func c(err error) { // Used to check error in this example, replace by whatever 
 
 ### With config :
 ```go
+package main
 import (
   "context"
   "time"
@@ -44,19 +44,28 @@ import (
   tor "berty.tech/go-libp2p-tor-transport"
   config "berty.tech/go-libp2p-tor-transport/config"
   libp2p "github.com/libp2p/go-libp2p"
+  madns "github.com/multiformats/go-multiaddr-dns"
 )
 
 func main() {
   builder, err := tor.NewBuilder(        // NewBuilder can accept some `config.Configurator`
-    config.AllowTcpDial,                 // Some Configurator are already ready to use.
+    config.AllowTcpDial(),               // Some Configurator are already ready to use.
     config.SetSetupTimeout(time.Minute), // Some require a parameter, in this case it's a function that will return a Configurator.
     config.SetBinaryPath("/usr/bin/tor"),
   )
-  // Evrything else is as previously shown.
   c(err)
+  // Sets the default madns resolver, if you don't do that dns requests will be done clearly over internet.
+  r, err := dns.CreateDoTMaDNSResolverFromDialContext(
+    builder.GetDialer().DialContext,                                      // Dialer
+    "cloudflare-dns.com",                                                 // Hostname
+    "1.1.1.1", "1.0.0.1", "2606:4700:4700::1111", "2606:4700:4700::1001", // Addresses
+  )
+  c(err)
+  madns.DefaultResolver = r
+  // Everything else is as previously shown.
   hostWithConfig, err := libp2p.New(
     context.Background(),
-    libp2p.Transport(builder),
+    libp2p.Transport(builder.GetTransportConstructor()),
   )
   c(err)
 }
