@@ -214,7 +214,7 @@ func (t *transport) Dial(ctx context.Context, raddr ma.Multiaddr, p peer.ID) (tp
 		} else {
 			laddr = cur.addr
 		}
-		stream, err := conn.OpenStream()
+		stream, err := conn.OpenStream(ctx)
 		if err != nil {
 			conn.Close()
 			return nil, errorx.Decorate(err, "Can't open laddr exchange stream")
