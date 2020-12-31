@@ -3,7 +3,7 @@ module berty.tech/go-libp2p-tor-transport
 go 1.15
 
 require (
-	berty.tech/go-libtor v1.0.345
+	berty.tech/go-libtor v1.0.347
 	github.com/cretz/bine v0.1.0
 	github.com/joomcode/errorx v1.0.3
 	github.com/libp2p/go-libp2p-core v0.8.0
