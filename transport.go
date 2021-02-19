@@ -8,9 +8,6 @@ import (
 	"sync"
 	"time"
 
-	"berty.tech/go-libp2p-tor-transport/config"
-	"berty.tech/go-libp2p-tor-transport/internal/confStore"
-
 	"github.com/cretz/bine/tor"
 
 	"github.com/libp2p/go-libp2p-core/peer"
@@ -27,7 +24,7 @@ import (
 type transport struct {
 	// bridge is the main tor object, he focuses interactions.
 	bridge *tor.Tor
-	dialer *tor.Dialer
+	dialer ContextDialer
 
 	// Used to upgrade unsecure TCP connections to secure multiplexed and
 	// authenticate Tor connections.
@@ -56,42 +53,17 @@ type listenHolder struct {
 	next *listenHolder
 }
 
-func NewBuilder(cs ...config.Configurator) (func(*tptu.Upgrader) tpt.Transport, error) {
-	var conf confStore.Config
-	{
-		// Applying configuration
-		c := &confStore.Config{
-			SetupTimeout: 5 * time.Minute,
-			TorStart: &tor.StartConf{
-				EnableNetwork: true, // Do Fast Start
-			},
-		}
-		if err := config.Merge(cs...)(c); err != nil {
-			return nil, errorx.Decorate(err, "Can't apply configuration to the tor node")
-		}
-		conf = *c
-	}
-	t, err := tor.Start(context.Background(), conf.TorStart)
-	if err != nil {
-		return nil, errorx.Decorate(err, "Can't start tor node")
-	}
-
-	// Up until this point, we don't need the starting configuration anymore.
-	conf.TorStart = nil
-
-	dialer, err := t.Dialer(context.Background(), nil)
-	if err != nil {
-		return nil, errorx.Decorate(err, "Can't create a dialer.")
-	}
+// GetTransportConstructor create a libp2p argument to pass to libp2p.Transport.
+func (b *Builder) GetTransportConstructor() func(*tptu.Upgrader) tpt.Transport {
 	return func(u *tptu.Upgrader) tpt.Transport {
 		return &transport{
-			allowTcpDial: conf.AllowTcpDial,
-			setupTimeout: conf.SetupTimeout,
-			bridge:       t,
-			dialer:       dialer,
+			allowTcpDial: b.allowTcpDial,
+			setupTimeout: b.setupTimeout,
+			bridge:       b.bridge,
+			dialer:       b.dialer,
 			upgrader:     u,
 		}
-	}, nil
+	}
 }
 
 func (_ *transport) Proxy() bool {

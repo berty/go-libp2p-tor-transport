@@ -1,6 +1,7 @@
 package tor
 
 import (
+	"io"
 	"net"
 	"time"
 
@@ -99,9 +100,7 @@ func (c *dialConnTcp) LocalMultiaddr() ma.Multiaddr {
 
 // netConnWithoutAddr is a net.Conn like but without LocalAddr and RemoteAddr.
 type netConnWithoutAddr interface {
-	Read(b []byte) (n int, err error)
-	Write(b []byte) (n int, err error)
-	Close() error
+	io.ReadWriteCloser
 	SetDeadline(t time.Time) error
 	SetReadDeadline(t time.Time) error
 	SetWriteDeadline(t time.Time) error
