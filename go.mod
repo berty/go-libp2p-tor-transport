@@ -4,7 +4,7 @@ go 1.15
 
 require (
 	berty.tech/go-libtor v1.0.371
-	github.com/cretz/bine v0.1.0
+	github.com/cretz/bine v0.2.0
 	github.com/joomcode/errorx v1.0.3
 	github.com/libp2p/go-libp2p-core v0.8.0
 	github.com/libp2p/go-libp2p-transport-upgrader v0.4.0
