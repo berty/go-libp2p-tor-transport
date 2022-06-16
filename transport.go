@@ -13,9 +13,9 @@ import (
 
 	"github.com/cretz/bine/tor"
 
+	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/libp2p/go-libp2p-core/peer"
 	tpt "github.com/libp2p/go-libp2p-core/transport"
-	tptu "github.com/libp2p/go-libp2p-transport-upgrader"
 
 	ma "github.com/multiformats/go-multiaddr"
 	mafmt "github.com/multiformats/go-multiaddr-fmt"
@@ -31,7 +31,8 @@ type transport struct {
 
 	// Used to upgrade unsecure TCP connections to secure multiplexed and
 	// authenticate Tor connections.
-	upgrader *tptu.Upgrader
+	upgrader tpt.Upgrader
+	rcmgr    network.ResourceManager
 
 	// if allowTcpDial is true the transport will accept to dial tcp address.
 	allowTcpDial bool
@@ -56,7 +57,7 @@ type listenHolder struct {
 	next *listenHolder
 }
 
-func NewBuilder(cs ...config.Configurator) (func(*tptu.Upgrader) tpt.Transport, error) {
+func NewBuilder(cs ...config.Configurator) (func(tpt.Upgrader) tpt.Transport, error) {
 	var conf confStore.Config
 	{
 		// Applying configuration
@@ -83,13 +84,14 @@ func NewBuilder(cs ...config.Configurator) (func(*tptu.Upgrader) tpt.Transport, 
 	if err != nil {
 		return nil, errorx.Decorate(err, "Can't create a dialer.")
 	}
-	return func(u *tptu.Upgrader) tpt.Transport {
+	return func(u tpt.Upgrader) tpt.Transport {
 		return &transport{
 			allowTcpDial: conf.AllowTcpDial,
 			setupTimeout: conf.SetupTimeout,
 			bridge:       t,
 			dialer:       dialer,
 			upgrader:     u,
+			rcmgr:        network.NullResourceManager,
 		}
 	}, nil
 }
@@ -193,12 +195,18 @@ func (t *transport) Dial(ctx context.Context, raddr ma.Multiaddr, p peer.ID) (tp
 		if err != nil {
 			return nil, errorx.Decorate(err, "Can't dial")
 		}
+
 		// Upgrading
-		conn, err := t.upgrader.UpgradeOutbound(ctx, t, &dialConn{
+		scope, err := t.rcmgr.OpenConnection(network.DirOutbound, true)
+		if err != nil {
+			return nil, fmt.Errorf("resource manager failed to open connection: %w", err)
+		}
+
+		conn, err := t.upgrader.Upgrade(ctx, t, &dialConn{
 			netConnWithoutAddr: c,
 			raddr:              raddr,
 			laddr:              &t.laddrs,
-		}, p)
+		}, network.DirOutbound, p, scope)
 		if err != nil {
 			return nil, errorx.Decorate(err, "Can't upgrade laddr exchange connection")
 		}
@@ -245,7 +253,7 @@ func (t *transport) Dial(ctx context.Context, raddr ma.Multiaddr, p peer.ID) (tp
 		netAddr, err := manet.ToNetAddr(raddr)
 		checkError(err)
 
-		return t.dialTroughProxy(ctx, raddr, netAddr.String(), p)
+		return t.dialThroughProxy(ctx, raddr, netAddr.String(), p)
 
 	case ma.P_DNS4, ma.P_DNS6: // DNS Dial
 		domain, err := raddr.ValueForProtocol(p0)
@@ -253,24 +261,30 @@ func (t *transport) Dial(ctx context.Context, raddr ma.Multiaddr, p peer.ID) (tp
 		port, err := raddr.ValueForProtocol(ma.P_TCP)
 		checkError(err)
 
-		return t.dialTroughProxy(ctx, raddr, domain+".onion:"+port, p)
+		return t.dialThroughProxy(ctx, raddr, domain+".onion:"+port, p)
 	default:
 		panic(fmt.Sprintf("Was not able to create net Addr from multiaddr, this shouldn't fail, check your multiaddr package or report to maintainers ! (%s)", raddr))
 	}
 }
 
-func (t *transport) dialTroughProxy(ctx context.Context, raddr ma.Multiaddr, addr string, p peer.ID) (tpt.CapableConn, error) {
+func (t *transport) dialThroughProxy(ctx context.Context, raddr ma.Multiaddr, addr string, p peer.ID) (tpt.CapableConn, error) {
 	// Dialing
 	c, err := t.dialer.DialContext(ctx, "tcp", addr)
 	if err != nil {
 		return nil, errorx.Decorate(err, "Can't dial")
 	}
+
 	// Upgrading
-	conn, err := t.upgrader.UpgradeOutbound(ctx, t, &dialConnTcp{
+	scope, err := t.rcmgr.OpenConnection(network.DirOutbound, true)
+	if err != nil {
+		return nil, fmt.Errorf("resource manager failed to open connection: %w", err)
+	}
+
+	conn, err := t.upgrader.Upgrade(ctx, t, &dialConnTcp{
 		netConnWithoutAddr: c,
 		raddr:              raddr,
 		laddr:              &t.laddrs,
-	}, p)
+	}, network.DirOutbound, p, scope)
 	if err != nil {
 		return nil, errorx.Decorate(err, "Can't upgrade connection")
 	}

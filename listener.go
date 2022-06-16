@@ -2,14 +2,15 @@ package tor
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"strconv"
 	"sync"
 
 	"github.com/cretz/bine/tor"
 
+	"github.com/libp2p/go-libp2p-core/network"
 	tpt "github.com/libp2p/go-libp2p-core/transport"
-	tptu "github.com/libp2p/go-libp2p-transport-upgrader"
 
 	ma "github.com/multiformats/go-multiaddr"
 
@@ -22,7 +23,7 @@ type listener struct {
 	cancel  func()
 	closer  sync.Once
 
-	upgrader *tptu.Upgrader
+	upgrader tpt.Upgrader
 	t        *transport
 
 	lAddrStore *listenStore
@@ -80,10 +81,18 @@ func (l *listener) Accept() (tpt.CapableConn, error) {
 		raddr:              NopMaddr2,
 	}
 
-	conn, err := l.upgrader.UpgradeInbound(
+	scope, err := l.t.rcmgr.OpenConnection(network.DirOutbound, true)
+	if err != nil {
+		return nil, fmt.Errorf("resource manager failed to open connection: %w", err)
+	}
+
+	conn, err := l.upgrader.Upgrade(
 		l.ctx,
 		l.t,
 		maConn,
+		network.DirInbound,
+		"",
+		scope,
 	)
 	if err != nil {
 		return nil, errorx.Decorate(err, "Can't upgrade raddr exchange connection")
